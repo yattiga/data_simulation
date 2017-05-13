@@ -190,7 +190,7 @@ combined2 <- data.frame(combined, wave1)
 
 
 # ALL OF THE ABOVE WAS JUST TO CREATE THE PREDICTOR AND CONFOUNDING DATA. NOW I WILL USE THE COEFFICIENTS FROM THE STUDY TO CREATE OUTCOME SCORES
-## SINCE CHANGE IN SLEEP QUALITY WAS THE BEST PREDICTOR, I WILL USE THAT MODEL TO CREATE OUTCOME SCORES
+## USED SLEEP QUALITY COEFFICIENTS
 
 #Chnage factor level reference to match study 
 combined2 <- within(combined2, race <- relevel(race, ref='white')) # borrowed from http://stackoverflow.com/questions/3872070/how-to-force-r-to-use-a-specified-factor-level-as-reference-in-a-regression
@@ -198,18 +198,22 @@ combined2 <- within(combined2, delta_quantity <- relevel(delta_quantity, ref='no
 combined2 <- within(combined2, delta_quality <- relevel(delta_quality, ref='no change'))
 combined2 <- within(combined2, delta_meds <- relevel(delta_meds, ref='no change'))
 
-dummy_matrix <- model.matrix(~score+sex+age+race+bmi+education+employ+delta_quality, combined2)
+dummy_matrix <- model.matrix(~score+sex+age+race+bmi+education+employ+delta_quantity+delta_quality+delta_meds, combined2)
 
 wave4_score <- vector()
 for (i in 1:GHQn) {
   row <- dummy_matrix[i,]
-  wave4_score <- append(wave4_score, 0.8*(row[2]*0.394 -0.626*row[3] -0.019*row[4] + 0.791*row[5] -0.533*row[6] -1.044*row[7] +0.56*row[8] + 
-                           0.03*row[9] +0.085*row[10] +0.11*row[11] +0.433*row[12] -0.185*row[13] +2.348*row[14] - 2.031*row[15]) + 0.2*rnorm(1))
+  wave4_score <- append(wave4_score, row[2]*0.394 -0.626*row[3] -0.019*row[4] + 0.791*row[5] -0.533*row[6] -1.044*row[7] +0.56*row[8] + 
+                           0.03*row[9] +0.085*row[10] +0.11*row[11] +0.433*row[12] -0.185*row[13] +1.913*row[14] -1.031*row[15] +2.348*row[16] - 
+                             2.031*row[17] + 2.595*row[18] - 1.929*row[19]) 
 }
 
 # Need to add the bias to the score. Since the paper did not give an intercept, I will use the difference between the wvae 1 and 4 means as the intercept
-wave4_score <- wave4_score + (mean(combined2$score) - mean(wave4_score))
-combined2$outcome_score <- wave4_score
-
+## Note that I'm also introducing some variance to maintain the wave 4 range, stdev, and mean based on the original wave 1 scores
+combined2$outcome_score <- (wave4_score + (mean(GHQmean) - mean(wave4_score))) * rtruncnorm(GHQn, mean=1, a=0.01, b=1.99, 0.4)
 fit1 <- lm(outcome_score ~ delta_quantity, data=combined2)
 summary(fit1)
+range(combined2$outcome_score)
+range(combined2$score)
+mean(combined2$outcome_score)
+sd(combined2$outcome_score)
