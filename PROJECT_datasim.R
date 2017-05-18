@@ -12,11 +12,17 @@ PCSstd <- 10.562
 
 GHQage_false <- rnorm(GHQn, 47.195, 16.619)
 GHQage <- rtruncnorm(GHQn, a=16, b= 110, 47.195, 16.619)
+CSage <- rtruncnorm(CSn, a=16, b= 110, 47.157, 16.679)
 GHQsex <- rbinom(GHQn, 1, 0.56058) #1 is female
+CSsex <- rbinom(CSn, 1, 0.56046)
 GHQsex <- ifelse(GHQsex==1, 'female', 'male')
+CSsex <- ifelse(CSsex==1, 'female', 'male')
 GHQrace <- as.factor(sample(c('white', 'asian', 'black', 'mixed', 'other'), GHQn, replace=TRUE, prob=c(0.87944, 0.06394, 0.03025, 0.01510, 0.01126)))
-df <- data.frame(GHQage, GHQsex)
-colnames(df) <- c('age', 'sex')
+CSrace <- as.factor(sample(c('white', 'asian', 'black', 'mixed', 'other'), CSn, replace=TRUE, prob=c(0.87649, 0.06543, 0.03030, 0.01515, 0.1130)))
+GHQdf <- data.frame(GHQage, GHQsex)
+CSdf <- data.frame(CSage, CSsex)
+colnames(GHQdf) <- c('age', 'sex')
+colnames(CSdf) <- c('age', 'sex')
 
 # library(ggplot2)
 # ggplot(data = df, aes(x=GHQage, y=GHQbmi)) + geom_point() + ggtitle('BMI as a function of Age') + theme(text = element_text(size=20))
@@ -47,12 +53,18 @@ race_employ <- function(race){
   }
 }
 GHQemploy <- vector()
+CSemploy <- vector()
 for (row in GHQrace){
   GHQemploy <- append(GHQemploy, sample(c('full time', 'part time', 'none'), 1, replace=TRUE, prob=race_employ(row)))
 }
-df_race <- data.frame(GHQrace, GHQemploy)
-colnames(df_race) <- c('race', 'employ')
+GHQdf_race <- data.frame(GHQrace, GHQemploy)
+colnames(GHQdf_race) <- c('race', 'employ')
 
+for (row in CSrace){
+  CSemploy <- append(CSemploy, sample(c('full time', 'part time', 'none'), 1, replace=TRUE, prob=race_employ(row)))
+}
+CSdf_race <- data.frame(CSrace, CSemploy)
+colnames(CSdf_race) <- c('race', 'employ')
 # Next we'll do the same thing with education, using race as the correlating variable
 # No adjustment needed between actual and study data since study data closesly matches actual data in terms of average educational levels
 # data from http://www.ethnicity.ac.uk/medialibrary/briefingsupdated/how-are-ethnic-inequalities-in-education-changing.pdf
@@ -71,11 +83,17 @@ race_edu <- function(race){
   }
 }
 GHQedu <- vector()
+CSedu <- vector()
+
 for (row in GHQrace){
   GHQedu <- append(GHQedu, sample(c('degree', 'other', 'none'), 1, replace=TRUE, prob=race_edu(row)))
 }
-df_race$education <- as.factor(GHQedu)
+GHQdf_race$education <- as.factor(GHQedu)
 
+for (row in CSrace){
+  CSedu <- append(CSedu, sample(c('degree', 'other', 'none'), 1, replace=TRUE, prob=race_edu(row)))
+}
+CSdf_race$education <- as.factor(CSedu)
 # Since BMI is correlated with multiple variables, I plan to first find relationships between BMI and each variable, and then create what is essentially my 
 ## own LR model using the equations from individual correlations.
 
@@ -100,20 +118,32 @@ bmi_value_func <- function(category) {
   }
 }
 
-dummy_bmi <- vector()
-bmi_value <- vector() #for assigning a value from rnorm distribution based on BMI category
-for (row in df$sex) {
+GHQdummy_bmi <- vector()
+GHQbmi_value <- vector() #for assigning a value from rnorm distribution based on BMI category
+for (row in GHQdf$sex) {
   d <- (sample(c('normal', 'over', 'obese'), 1, replace=TRUE, prob=bmi_func(row)))
-  dummy_bmi <- append(dummy_bmi, d)
-  bmi_value <- append(bmi_value, bmi_value_func(d))
+  GHQdummy_bmi <- append(GHQdummy_bmi, d)
+  GHQbmi_value <- append(GHQbmi_value, bmi_value_func(d))
 }
 
-GHQbmi_sex <- bmi_value
+GHQbmi_sex <- GHQbmi_value
 GHQbmi_age <- 0.7* (-0.003 * (GHQage - 55)^2) + 28.5 + 0.3* (rnorm(GHQn, sd=5.019))
-df$bmi <- (GHQbmi_age + GHQbmi_sex)/2 + rnorm(GHQn, sd=3) #using rnorm one last time to ensure variance in final BMI calculation
-combined <- data.frame(df, df_race)
+GHQdf$bmi <- (GHQbmi_age + GHQbmi_sex)/2 + rnorm(GHQn, sd=3) #using rnorm one last time to ensure variance in final BMI calculation
+GHQcombined <- data.frame(GHQdf, GHQdf_race)
 
 
+CSdummy_bmi <- vector()
+CSbmi_value <- vector() #for assigning a value from rnorm distribution based on BMI category
+for (row in CSdf$sex) {
+  d <- (sample(c('normal', 'over', 'obese'), 1, replace=TRUE, prob=bmi_func(row)))
+  CSdummy_bmi <- append(CSdummy_bmi, d)
+  CSbmi_value <- append(CSbmi_value, bmi_value_func(d))
+}
+
+CSbmi_sex <- CSbmi_value
+CSbmi_age <- 0.7* (-0.003 * (CSage - 55)^2) + 28.5 + 0.3* (rnorm(CSn, sd=5.024))
+CSdf$bmi <- (CSbmi_age + CSbmi_sex)/2 + rnorm(CSn, sd=3) #using rnorm one last time to ensure variance in final BMI calculation
+CScombined <- data.frame(CSdf, CSdf_race)
 # Create predictor variable factors (wave 1 data)
 
 simulate_wave1_stats <- function(score_mean, std, N) {
@@ -134,7 +164,11 @@ simulate_wave1_stats <- function(score_mean, std, N) {
   return(wave1)
 }
 
-wave1 <- simulate_wave1_stats(GHQmean, GHQstd, GHQn)
+GHQwave1 <- simulate_wave1_stats(GHQmean, GHQstd, GHQn)
+MCSwave1 <- simulate_wave1_stats(MCSmean, MCSstd, CSn)
+PCSwave1 <- simulate_wave1_stats(PCSmean, PCSstd, CSn)
+CSwave1 <- data.frame(MCSwave1, PCSwave1$score)
+colnames(CSwave1) <- c('quantity', 'quality', 'meds', 'MCS_score_1', 'PCS_score_1')
 
 
 # Create CHANGE predictor variable randomly based on reported probabilities in paper (see last paragraph after first table)
@@ -174,46 +208,96 @@ delta_meds <- function(med){
   }
 }
 
-d_quant <- vector()
-d_qual <- vector()
-d_meds <- vector()
+GHQd_quant <- vector()
+GHQd_qual <- vector()
+GHQd_meds <- vector()
+
+CSd_quant <- vector()
+CSd_qual <- vector()
+CSd_meds <- vector()
+
 for(i in 1:GHQn) {
-  d_quant <- append(d_quant, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quantity(wave1[i,1])))
-  d_qual <- append(d_qual, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quality(wave1[i,2])))
-  d_meds <- append(d_meds, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_meds(wave1[i,3])))
+  GHQd_quant <- append(GHQd_quant, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quantity(GHQwave1[i,1])))
+  GHQd_qual <- append(GHQd_qual, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quality(GHQwave1[i,2])))
+  GHQd_meds <- append(GHQd_meds, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_meds(GHQwave1[i,3])))
 }
 
-wave1$delta_quantity <- as.factor(d_quant)
-wave1$delta_quality <- as.factor(d_qual)
-wave1$delta_meds <- as.factor(d_meds)
-combined2 <- data.frame(combined, wave1)
+GHQwave1$delta_quantity <- as.factor(GHQd_quant)
+GHQwave1$delta_quality <- as.factor(GHQd_qual)
+GHQwave1$delta_meds <- as.factor(GHQd_meds)
+GHQcombined2 <- data.frame(GHQcombined, GHQwave1)
+
+for(i in 1:CSn) {
+  CSd_quant <- append(CSd_quant, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quantity(CSwave1[i,1])))
+  CSd_qual <- append(CSd_qual, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_quality(CSwave1[i,2])))
+  CSd_meds <- append(CSd_meds, sample(c('decrease', 'no change', 'increase'), 1, replace=TRUE, prob=delta_meds(CSwave1[i,3])))
+}
+
+CSwave1$delta_quantity <- as.factor(CSd_quant)
+CSwave1$delta_quality <- as.factor(CSd_qual)
+CSwave1$delta_meds <- as.factor(CSd_meds)
+CScombined2 <- data.frame(CScombined, CSwave1)
 
 
 # ALL OF THE ABOVE WAS JUST TO CREATE THE PREDICTOR AND CONFOUNDING DATA. NOW I WILL USE THE COEFFICIENTS FROM THE STUDY TO CREATE OUTCOME SCORES
 ## USED SLEEP QUALITY COEFFICIENTS
 
 #Chnage factor level reference to match study 
-combined2 <- within(combined2, race <- relevel(race, ref='white')) # borrowed from http://stackoverflow.com/questions/3872070/how-to-force-r-to-use-a-specified-factor-level-as-reference-in-a-regression
-combined2 <- within(combined2, delta_quantity <- relevel(delta_quantity, ref='no change'))
-combined2 <- within(combined2, delta_quality <- relevel(delta_quality, ref='no change'))
-combined2 <- within(combined2, delta_meds <- relevel(delta_meds, ref='no change'))
+GHQcombined2 <- within(GHQcombined2, race <- relevel(race, ref='white')) # borrowed from http://stackoverflow.com/questions/3872070/how-to-force-r-to-use-a-specified-factor-level-as-reference-in-a-regression
+GHQcombined2 <- within(GHQcombined2, delta_quantity <- relevel(delta_quantity, ref='no change'))
+GHQcombined2 <- within(GHQcombined2, delta_quality <- relevel(delta_quality, ref='no change'))
+GHQcombined2 <- within(GHQcombined2, delta_meds <- relevel(delta_meds, ref='no change'))
 
-dummy_matrix <- model.matrix(~score+sex+age+race+bmi+education+employ+delta_quantity+delta_quality+delta_meds, combined2)
+GHQdummy_matrix <- model.matrix(~score+sex+age+race+bmi+education+employ+delta_quantity+delta_quality+delta_meds, GHQcombined2)
 
-wave4_score <- vector()
+CScombined2 <- within(CScombined2, race <- relevel(race, ref='white')) # borrowed from http://stackoverflow.com/questions/3872070/how-to-force-r-to-use-a-specified-factor-level-as-reference-in-a-regression
+CScombined2 <- within(CScombined2, delta_quantity <- relevel(delta_quantity, ref='no change'))
+CScombined2 <- within(CScombined2, delta_quality <- relevel(delta_quality, ref='no change'))
+CScombined2 <- within(CScombined2, delta_meds <- relevel(delta_meds, ref='no change'))
+
+CSdummy_matrix <- model.matrix(~MCS_score_1+PCS_score_1+sex+age+race+bmi+education+employ+delta_quantity+delta_quality+delta_meds, CScombined2)
+
+GHQwave4_score <- vector()
 for (i in 1:GHQn) {
-  row <- dummy_matrix[i,]
-  wave4_score <- append(wave4_score, row[2]*0.394 -0.626*row[3] -0.019*row[4] + 0.791*row[5] -0.533*row[6] -1.044*row[7] +0.56*row[8] + 
+  row <- GHQdummy_matrix[i,]
+  GHQwave4_score <- append(GHQwave4_score, row[2]*0.394 -0.626*row[3] -0.019*row[4] + 0.791*row[5] -0.533*row[6] -1.044*row[7] +0.56*row[8] + 
                            0.03*row[9] +0.085*row[10] +0.11*row[11] +0.433*row[12] -0.185*row[13] +1.913*row[14] -1.031*row[15] +2.348*row[16] - 
                              2.031*row[17] + 2.595*row[18] - 1.929*row[19]) 
 }
 
-# Need to add the bias to the score. Since the paper did not give an intercept, I will use the difference between the wvae 1 and 4 means as the intercept
+MCSwave4_score <- vector()
+for (i in 1:CSn) {
+  row <- CSdummy_matrix[i,]
+  MCSwave4_score <- append(MCSwave4_score, -0.640*row[2] +0.954*row[4] +0.087*row[5] - 1.425*row[6] +0.656*row[7] +0.592*row[8] -0.851*row[9] + 
+                          -0.014*row[10] +0.140*row[11] -0.502*row[12] +0.551*row[13] -0.772*row[14] -2.628*row[15] +1.531*row[16] -3.514*row[17] - 
+                          +3.027*row[18] -4.567*row[19] +3.106*row[20]) 
+}
+
+PCSwave4_score <- vector()
+for (i in 1:CSn) {
+  row <- CSdummy_matrix[i,]
+  PCSwave4_score <- append(PCSwave4_score, -0.424*row[3] -0.035*row[4] -0.104*row[5] -1.963*row[6] -1.243*row[7] -1.272*row[8] -0.822*row[9] + 
+                             -0.117*row[10] -0.932*row[11] -1.792*row[12] -0.477*row[13] -2.027*row[14] -1.526*row[15] -0.071*row[16] -1.867*row[17] - 
+                             +0.924*row[18] -3.024*row[19] +2.633*row[20]) 
+}
+
+# Need to add the bias to the score. Since the paper did not give an intercept, I will use the difference between the wave 1 and 4 means as the intercept
 ## Note that I'm also introducing some variance to maintain the wave 4 range, stdev, and mean based on the original wave 1 scores
-combined2$outcome_score <- (wave4_score + (mean(GHQmean) - mean(wave4_score))) * rtruncnorm(GHQn, mean=1, a=0.01, b=1.99, 0.4)
+GHQcombined2$outcome_score <- (GHQwave4_score + (GHQmean - mean(GHQwave4_score))) * rtruncnorm(GHQn, mean=1, a=0.01, b=1.99, 0.4)
+CScombined2$MCSoutcome_score <- (MCSwave4_score + (MCSmean - mean(MCSwave4_score)))* rtruncnorm(CSn, mean=1, a=0.01, b=1.99, 0.1)
+CScombined2$PCSoutcome_score <- (PCSwave4_score + (PCSmean - mean(PCSwave4_score)))* rtruncnorm(CSn, mean=1, a=0.01, b=1.99, 0.1)
+
 fit1 <- lm(outcome_score ~ delta_quantity, data=combined2)
 summary(fit1)
-range(combined2$outcome_score)
-range(combined2$score)
-mean(combined2$outcome_score)
-sd(combined2$outcome_score)
+range(GHQcombined2$outcome_score)
+range(GHQcombined2$score)
+mean(GHQcombined2$outcome_score)
+sd(GHQcombined2$outcome_score)
+
+mean(CScombined2$MCSoutcome_score)
+mean(CScombined2$PCSoutcome_score)
+range(CScombined2$MCS_score_1)
+
+range(GHQcombined2$score)
+mean(GHQcombined2$outcome_score)
+sd(GHQcombined2$outcome_score)
