@@ -24,9 +24,6 @@ CSdf <- data.frame(CSage, CSsex)
 colnames(GHQdf) <- c('age', 'sex')
 colnames(CSdf) <- c('age', 'sex')
 
-# library(ggplot2)
-# ggplot(data = df, aes(x=GHQage, y=GHQbmi)) + geom_point() + ggtitle('BMI as a function of Age') + theme(text = element_text(size=20))
-
 # This dataset has ~5 times more unemployed people than reality in the U.K. (house of commons library: http://researchbriefings.parliament.uk/ResearchBriefing/Summary/SN06385)
 # Let's find the factor of difference between reality and this data set
 
@@ -287,17 +284,74 @@ GHQcombined2$outcome_score <- (GHQwave4_score + (GHQmean - mean(GHQwave4_score))
 CScombined2$MCSoutcome_score <- (MCSwave4_score + (MCSmean - mean(MCSwave4_score)))* rtruncnorm(CSn, mean=1, a=0.01, b=1.99, 0.1)
 CScombined2$PCSoutcome_score <- (PCSwave4_score + (PCSmean - mean(PCSwave4_score)))* rtruncnorm(CSn, mean=1, a=0.01, b=1.99, 0.1)
 
-fit1 <- lm(outcome_score ~ delta_quantity, data=combined2)
-summary(fit1)
-range(GHQcombined2$outcome_score)
-range(GHQcombined2$score)
-mean(GHQcombined2$outcome_score)
-sd(GHQcombined2$outcome_score)
+write.csv(GHQcombined2,file="GHQ_sim_data.csv")
+write.csv(CScombined2, file="CS_sim_data.csv")
 
-mean(CScombined2$MCSoutcome_score)
-mean(CScombined2$PCSoutcome_score)
-range(CScombined2$MCS_score_1)
+# TIME FOR SOME EXPLORATORY PLOTS AND ANALYTICS
 
-range(GHQcombined2$score)
-mean(GHQcombined2$outcome_score)
-sd(GHQcombined2$outcome_score)
+library(ggplot2)
+library(gridExtra)
+plot1 <- ggplot(data = GHQcombined2, aes(x=age, y=bmi)) + geom_point(aes(col=outcome_score)) + geom_smooth(method='lm')+ggtitle('BMI vs. Age, Colored by Score') + theme(text = element_text(size=20))
+plot2 <- ggplot(data = GHQcombined2, aes(x=age, y=bmi)) + geom_point(aes(col=sex)) + ggtitle('BMI vs. Age, Colored by Sex') + theme(text = element_text(size=20))
+plot3 <- ggplot(data = GHQcombined2, aes(x=age, y=bmi)) + geom_point(aes(col=education)) + ggtitle('BMI vs. Age, Colored by Education') + theme(text = element_text(size=20))
+plot4 <- ggplot(data = GHQcombined2, aes(x=age, y=bmi)) + geom_point(aes(col=quality)) + ggtitle('BMI vs. Age, Colored by Sleep Quality') + theme(text = element_text(size=20))
+grid.arrange(plot1, plot2, plot3, plot4, nrow=2, ncol=2)
+
+p11 <- ggplot(data = GHQcombined2, aes(x=outcome_score-score)) + geom_histogram(aes(fill=delta_quantity)) + ggtitle('GHQ Change in Score Based on Change in Sleep Quantity') + theme(text = element_text(size=8))
+p12 <- ggplot(data = CScombined2, aes(x=MCSoutcome_score-MCS_score_1)) + geom_histogram(aes(fill=delta_quantity)) + ggtitle('MCS Change in Score Based on Change in Sleep Quantity') + theme(text = element_text(size=8))
+p13 <- ggplot(data = CScombined2, aes(x=PCSoutcome_score-PCS_score_1)) + geom_histogram(aes(fill=delta_quantity)) + ggtitle('PCS Change in Score Based on Change in Sleep Quantity') + theme(text = element_text(size=8))
+p21 <- ggplot(data = GHQcombined2, aes(x=outcome_score-score)) + geom_histogram(aes(fill=delta_quality)) + ggtitle('GHQ Change in Score Based on Change in Sleep Quality') + theme(text = element_text(size=8))
+p22 <- ggplot(data = CScombined2, aes(x=MCSoutcome_score-MCS_score_1)) + geom_histogram(aes(fill=delta_quality)) + ggtitle('MCS Change in Score Based on Change in Sleep Quality') + theme(text = element_text(size=8))
+p23 <- ggplot(data = CScombined2, aes(x=PCSoutcome_score-PCS_score_1)) + geom_histogram(aes(fill=delta_quality)) + ggtitle('PCS Change in Score Based on Change in Sleep Quality') + theme(text = element_text(size=8))
+p31 <- ggplot(data = GHQcombined2, aes(x=outcome_score-score)) + geom_histogram(aes(fill=delta_meds)) + ggtitle('GHQ Change in Score Based on Change in Meds') + theme(text = element_text(size=8))
+p32 <- ggplot(data = CScombined2, aes(x=MCSoutcome_score-MCS_score_1)) + geom_histogram(aes(fill=delta_meds)) + ggtitle('MCS Change in Score Based on Change in Meds') + theme(text = element_text(size=8))
+p33 <- ggplot(data = CScombined2, aes(x=PCSoutcome_score-PCS_score_1)) + geom_histogram(aes(fill=delta_meds)) + ggtitle('PCS Change in Score Based on Change in Meds') + theme(text = element_text(size=8))
+grid.arrange(p11,p12,p13,p21,p22,p23,p31,p32,p33, nrow=3, ncol=3)
+
+
+# WHAT HAPPENDS WHEN I CREATE A REGRESSION MODEL WITHOUT THE ORIGINAL SCORE AS A PREDICTOR?
+# all the fits that begin with ws (with score) have the wave 1 score as a predictor
+GHQ_quantity_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quantity, data=GHQcombined2)
+GHQ_quality_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quality, data=GHQcombined2)
+GHQ_meds_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_meds, data=GHQcombined2)
+GHQ_overall_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=GHQcombined2)
+
+wsGHQ_quantity_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quantity, data=GHQcombined2)
+wsGHQ_quality_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quality, data=GHQcombined2)
+wsGHQ_meds_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_meds, data=GHQcombined2)
+wsGHQ_overall_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=GHQcombined2)
+
+MCS_quantity_fit <- lm(MCSoutcome_score ~ sex+age+race+education+employ+delta_quantity, data=CScombined2)
+MCS_quality_fit <- lm(MCSoutcome_score ~ sex+age+race+education+employ+delta_quality, data=CScombined2)
+MCS_meds_fit <- lm(MCSoutcome_score ~ sex+age+race+education+employ+delta_meds, data=CScombined2)
+MCS_overall_fit <- lm(MCSoutcome_score ~ sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=CScombined2)
+
+wsMCS_quantity_fit <- lm(MCSoutcome_score ~ MCS_score_1+sex+age+race+education+employ+delta_quantity, data=CScombined2)
+wsMCS_quality_fit <- lm(MCSoutcome_score ~ MCS_score_1+sex+age+race+education+employ+delta_quality, data=CScombined2)
+wsMCS_meds_fit <- lm(MCSoutcome_score ~ MCS_score_1+sex+age+race+education+employ+delta_meds, data=CScombined2)
+wsMCS_overall_fit <- lm(MCSoutcome_score ~ MCS_score_1+sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=CScombined2)
+
+PCS_quantity_fit <- lm(PCSoutcome_score ~ sex+age+race+education+employ+delta_quantity, data=CScombined2)
+PCS_quality_fit <- lm(PCSoutcome_score ~ sex+age+race+education+employ+delta_quality, data=CScombined2)
+PCS_meds_fit <- lm(PCSoutcome_score ~ sex+age+race+education+employ+delta_meds, data=CScombined2)
+PCS_overall_fit <- lm(PCSoutcome_score ~ sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=CScombined2)
+
+wsPCS_quantity_fit <- lm(PCSoutcome_score ~ PCS_score_1+sex+age+race+education+employ+delta_quantity, data=CScombined2)
+wsPCS_quality_fit <- lm(PCSoutcome_score ~ PCS_score_1+sex+age+race+education+employ+delta_quality, data=CScombined2)
+wsPCS_meds_fit <- lm(PCSoutcome_score ~ PCS_score_1+sex+age+race+education+employ+delta_meds, data=CScombined2)
+wsPCS_overall_fit <- lm(PCSoutcome_score ~ PCS_score_1+sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=CScombined2)
+
+
+quantity <- c(summary(GHQ_quantity_fit)$r.squared, summary(wsGHQ_quantity_fit)$r.squared, summary(MCS_quantity_fit)$r.squared, summary(wsMCS_quantity_fit)$r.squared, summary(PCS_quantity_fit)$r.squared, summary(wsPCS_quantity_fit)$r.squared)
+quality <- c(summary(GHQ_quality_fit)$r.squared, summary(wsGHQ_quality_fit)$r.squared, summary(MCS_quality_fit)$r.squared, summary(wsMCS_quality_fit)$r.squared, summary(PCS_quality_fit)$r.squared, summary(wsPCS_quality_fit)$r.squared)
+meds <- c(summary(GHQ_meds_fit)$r.squared, summary(wsGHQ_meds_fit)$r.squared, summary(MCS_meds_fit)$r.squared, summary(wsMCS_meds_fit)$r.squared, summary(PCS_meds_fit)$r.squared, summary(wsPCS_meds_fit)$r.squared)
+overall <- c(summary(GHQ_overall_fit)$r.squared, summary(wsGHQ_overall_fit)$r.squared, summary(MCS_overall_fit)$r.squared, summary(wsMCS_overall_fit)$r.squared, summary(PCS_overall_fit)$r.squared, summary(wsPCS_overall_fit)$r.squared)
+
+score_influence <- data.frame(quantity, quality, meds, overall, row.names=c("GHQ no score", "GHQ with score", "MCS no score", "MCS with score", "PCS no score", "PCS with score"))
+par(mfrow=c(2,2), oma=c(0,0,2,0))
+barplot(quantity, names.arg = c("GHQ no score", "GHQ with score", "MCS no score", "MCS with score", "PCS no score", "PCS with score"), col=c('blue', 'red', 'blue','red','blue','red'), main="QUANTITY")
+barplot(quality, names.arg = c("GHQ no score", "GHQ with score", "MCS no score", "MCS with score", "PCS no score", "PCS with score"), col=c('blue', 'red', 'blue','red','blue','red'), main="QUALITY")
+barplot(meds, names.arg = c("GHQ no score", "GHQ with score", "MCS no score", "MCS with score", "PCS no score", "PCS with score"), col=c('blue', 'red', 'blue','red','blue','red'), main="MEDS")
+barplot(overall, names.arg = c("GHQ no score", "GHQ with score", "MCS no score", "MCS with score", "PCS no score", "PCS with score"), col=c('blue', 'red', 'blue','red','blue','red'), main='OVERALL')
+title("R Squared Values of Fits", outer=TRUE)
+
