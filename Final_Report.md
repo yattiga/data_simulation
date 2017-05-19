@@ -138,3 +138,8 @@ Lastly, I created the outcome variable vectors. An example of such code is shown
     
 The datesets I created, both as csv files, can be found in this repo.
 
+## Exploratory Plots
+
+![] (/explore.png)
+
+These plots show how some correlated variables are related. With 20,000+ data points, it mostly looks like random noise, which is a good thing since that more accurately reflects real life. In reality, regression models show that features like BMI and age are indeed related, as intended.
