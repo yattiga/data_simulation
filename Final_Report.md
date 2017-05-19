@@ -12,7 +12,7 @@ For each model, the predictor variables were (1) delta sleep quality, (2) delta 
 The authors considered many confounding variables, including sex, age, BMI, ethnicity (white, asian, black, mixed, other), employment (FT, PT, not), education (university+, any other, none). 
 
 ## Simulating the Data
-This was easily the bulk of the project for me since so many correlated variables existed. To simulate the data, I used the authors mean and standard deviation information, along with rnorm, to create vectors of age, sex, and race. The GHQ models used a different dataset than the MCS and PCS models, so I created two separate datasets.
+PLEASE NOTE THAT MY PROJECT_datasim.R FILE CONTAINS ALL LINES OF CODE, AND THIS REPORT ONLY INCLUDES CERTAIN ASPECTS. This was easily the bulk of the project for me since so many correlated variables existed. To simulate the data, I used the authors mean and standard deviation information, along with rnorm, to create vectors of age, sex, and race. The GHQ models used a different dataset than the MCS and PCS models, so I created two separate datasets.
 
     GHQage <- rtruncnorm(GHQn, a=16, b= 110, 47.195, 16.619)
     CSage <- rtruncnorm(CSn, a=16, b= 110, 47.157, 16.679)
@@ -66,7 +66,7 @@ Variables such as employment, education, and BMI are all correlated with at leas
 
 A similar process was done to create education vectors, using race as the correlating variable. No adjustment was needed between actual and study data since study data closesly matched actual data in terms of average educational levels (data from http://www.ethnicity.ac.uk/medialibrary/briefingsupdated/how-are-ethnic-inequalities-in-education-changing.pdf).
 
-Since BMI was correlated with multiple variables, I first obesity stats as it pertains to age and sex to create the appropriate probabilities. Next I took random samples with some rnorm variance, and then averaged the two results (along with some extra added variance) to create a correlated BMI.
+Since BMI was correlated with multiple variables, I first obtained obesity stats as it pertains to age and sex to create the appropriate probabilities. Next I took random samples with some rnorm variance, and then averaged the two results (along with some extra added variance) to create a correlated BMI.
 
     bmi_func <- function(sex) {
       if (sex=='male') {
@@ -138,8 +138,33 @@ Lastly, I created the outcome variable vectors. An example of such code is shown
     
 The datesets I created, both as csv files, can be found in this repo.
 
-## Exploratory Plots
+## Exploratory Plots and Analysis
 
-![] (/explore.png)
+![](/explore.png)
 
-These plots show how some correlated variables are related. With 20,000+ data points, it mostly looks like random noise, which is a good thing since that more accurately reflects real life. In reality, regression models show that features like BMI and age are indeed related, as intended.
+These plots show how some correlated variables are related. With 20,000+ data points, it mostly looks like random noise, which is a good thing since I wasn't trying to create a perfect dependent/independent relationship. In reality, regression models show that features like BMI and age are indeed related, as intended.
+
+Next, I looked at how changes in predictor variables were correlated to changes in test scores.
+
+![](/Delta_scores.png)
+
+Interestingly, GHQ scores appear to DECLINE when quantity and/or quality of sleep are increased. I beieve this is because of the issue inherent to how the data was collected (discussed above). If people who sleep fewer than 6 hours have low scores to start with, on average, they are less likely to further decline in score. At some point, the only way to go is up. This is a bit of hyperbole, but the hypothesis holds true in many real-world scenarios. A person who only knows 100 words is more likely to learn 10 new words in a day than someone who already knows 10,000 words.
+
+Lastly, LR models were created using the same predictor variables as the paper. I also created LR models that did not include wave 1 scores as a predictor, since I felt those could be auto-correlated with wave 4 scores. 
+
+        # all the fits that begin with ws (with score) have the wave 1 score as a predictor
+        GHQ_quantity_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quantity, data=GHQcombined2)
+        GHQ_quality_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quality, data=GHQcombined2)
+        GHQ_meds_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_meds, data=GHQcombined2)
+        GHQ_overall_fit <- lm(outcome_score ~ sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=GHQcombined2)
+
+        wsGHQ_quantity_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quantity, data=GHQcombined2)
+        wsGHQ_quality_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quality, data=GHQcombined2)
+        wsGHQ_meds_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_meds, data=GHQcombined2)
+        wsGHQ_overall_fit <- lm(outcome_score ~ score+sex+age+race+education+employ+delta_quantity+delta_quality+delta_meds, data=GHQcombined2)
+
+Comparisons between the two types of models, using adjusted R square stats, are shown in the bar plots below:
+
+![](/r_square_plot.png)
+
+As expected, models that included wave 1 scores had far better adjusted R squared scores.
